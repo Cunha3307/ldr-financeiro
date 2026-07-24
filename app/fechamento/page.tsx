@@ -38,29 +38,76 @@ export default function FechamentoPage() {
         .eq('periodo_id', p.id);
 
       if (lancs) {
-        let entradas = 0;
-        let saidas = 0;
         let dizimos = 0;
         let ofertas = 0;
         let ofertasMissoes = 0;
+        let ofertasEspeciais = 0;
+        let ofertasRedeBomber = 0;
+
+        let entradasSicoob = 0;
+        let entradasMercadoPago = 0;
+        let entradasCaixa = 0;
+
+        let totalGeralEntradas = 0;
+
+        let saidasSicoob = 0;
+        let saidasMercadoPago = 0;
+        let saidasCaixa = 0;
+
+        let totalGeralSaidas = 0;
 
         lancs.forEach((l) => {
           const val = Number(l.valor);
-          if (l.tipo === 'entrada') entradas += val;
-          if (l.tipo === 'saida') saidas += val;
+          const catNome = l.categorias?.nome ? l.categorias.nome.toLowerCase() : '';
+          const contaNome = l.contas?.nome ? l.contas.nome.toLowerCase() : '';
 
-          if (l.categorias?.nome === 'Dízimo') dizimos += val;
-          if (l.categorias?.nome === 'Oferta') ofertas += val;
-          if (l.categorias?.nome === 'Oferta de Missões') ofertasMissoes += val;
+          if (l.tipo === 'entrada') {
+            totalGeralEntradas += val;
+
+            // Categorias de Entrada
+            if (catNome.includes('dízimo') || catNome.includes('dizimo')) {
+              dizimos += val;
+            } else if (catNome.includes('missões') || catNome.includes('missoes')) {
+              ofertasMissoes += val;
+            } else if (catNome.includes('especial') || catNome.includes('especiais')) {
+              ofertasEspeciais += val;
+            } else if (catNome.includes('bomber')) {
+              ofertasRedeBomber += val;
+            } else if (catNome.includes('oferta')) {
+              ofertas += val;
+            }
+
+            // Entradas por Conta
+            if (contaNome.includes('sicoob')) entradasSicoob += val;
+            if (contaNome.includes('mercado') || contaNome.includes('pago')) entradasMercadoPago += val;
+            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) entradasCaixa += val;
+          }
+
+          if (l.tipo === 'saida') {
+            totalGeralSaidas += val;
+
+            // Saídas por Conta
+            if (contaNome.includes('sicoob')) saidasSicoob += val;
+            if (contaNome.includes('mercado') || contaNome.includes('pago')) saidasMercadoPago += val;
+            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) saidasCaixa += val;
+          }
         });
 
         setResumo({
-          entradas,
-          saidas,
           dizimos,
           ofertas,
           ofertasMissoes,
-          saldoPeriodo: entradas - saidas,
+          ofertasEspeciais,
+          ofertasRedeBomber,
+          entradasSicoob,
+          entradasMercadoPago,
+          entradasCaixa,
+          totalGeralEntradas,
+          saidasSicoob,
+          saidasMercadoPago,
+          saidasCaixa,
+          totalGeralSaidas,
+          saldoMes: totalGeralEntradas - totalGeralSaidas,
         });
       }
     }
@@ -91,7 +138,6 @@ export default function FechamentoPage() {
     }
 
     // 2. TRANSPORTE AUTOMÁTICO DE SALDO
-    // Criar o próximo mês com o saldo de abertura vindo deste fechamento
     const proximoMes = mes === 12 ? 1 : mes + 1;
     const proximoAno = mes === 12 ? ano + 1 : ano;
 
@@ -120,7 +166,7 @@ export default function FechamentoPage() {
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 pt-6">
+      <div className="max-w-3xl mx-auto px-4 pt-6">
         <h1 className="text-2xl font-bold text-slate-800 mb-4">Fechamento Mensal de Caixa</h1>
 
         {/* SELETOR DE MÊS/ANO */}
@@ -180,30 +226,87 @@ export default function FechamentoPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-50 rounded-lg">
-                <span className="text-xs text-slate-500 font-semibold block">Total Dízimos</span>
-                <span className="text-lg font-bold text-slate-800">R$ {resumo.dizimos.toFixed(2)}</span>
+            {/* DEMONSTRATIVO DETALHADO */}
+            <div className="space-y-2 text-sm text-slate-700">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Total de Dízimos:</span>
+                <span className="font-semibold text-slate-900">R$ {resumo.dizimos.toFixed(2)}</span>
               </div>
-              <div className="p-4 bg-slate-50 rounded-lg">
-                <span className="text-xs text-slate-500 font-semibold block">Total Ofertas</span>
-                <span className="text-lg font-bold text-slate-800">R$ {resumo.ofertas.toFixed(2)}</span>
+
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Total de Ofertas:</span>
+                <span className="font-semibold text-slate-900">R$ {resumo.ofertas.toFixed(2)}</span>
               </div>
-              <div className="p-4 bg-slate-50 rounded-lg">
-                <span className="text-xs text-slate-500 font-semibold block">Oferta Missões</span>
-                <span className="text-lg font-bold text-slate-800">R$ {resumo.ofertasMissoes.toFixed(2)}</span>
+
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Oferta Missões:</span>
+                <span className="font-semibold text-slate-900">R$ {resumo.ofertasMissoes.toFixed(2)}</span>
               </div>
-              <div className="p-4 bg-emerald-50 rounded-lg">
-                <span className="text-xs text-emerald-600 font-semibold block">Total Entradas</span>
-                <span className="text-lg font-bold text-emerald-700">R$ {resumo.entradas.toFixed(2)}</span>
+
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Ofertas Especiais:</span>
+                <span className="font-semibold text-slate-900">R$ {resumo.ofertasEspeciais.toFixed(2)}</span>
               </div>
-              <div className="p-4 bg-red-50 rounded-lg">
-                <span className="text-xs text-red-600 font-semibold block">Total Saídas</span>
-                <span className="text-lg font-bold text-red-700">R$ {resumo.saidas.toFixed(2)}</span>
+
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Ofertas Rede Bomber:</span>
+                <span className="font-semibold text-slate-900">R$ {resumo.ofertasRedeBomber.toFixed(2)}</span>
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <span className="text-xs text-blue-600 font-semibold block">Resultado do Mês</span>
-                <span className="text-lg font-bold text-blue-700">R$ {resumo.saldoPeriodo.toFixed(2)}</span>
+
+              {/* ENTRADAS BANCÁRIAS */}
+              <div className="pt-2">
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-slate-50 px-2 rounded">
+                  <span className="text-slate-600">Total Entradas Sicoob:</span>
+                  <span className="font-medium">R$ {resumo.entradasSicoob.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-slate-50 px-2 rounded mt-1">
+                  <span className="text-slate-600">Total Entradas Mercado Pago:</span>
+                  <span className="font-medium">R$ {resumo.entradasMercadoPago.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-slate-50 px-2 rounded mt-1">
+                  <span className="text-slate-600">Total Entradas Caixa:</span>
+                  <span className="font-medium">R$ {resumo.entradasCaixa.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* TOTAL GERAL ENTRADAS */}
+              <div className="flex justify-between py-2 border-b-2 border-slate-300 pt-3">
+                <span className="font-bold text-emerald-700 uppercase">Total Geral de Entradas:</span>
+                <span className="font-bold text-emerald-700 text-base">R$ {resumo.totalGeralEntradas.toFixed(2)}</span>
+              </div>
+
+              {/* SAÍDAS BANCÁRIAS */}
+              <div className="pt-2">
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-red-50/40 px-2 rounded">
+                  <span className="text-slate-600">Total Saídas Sicoob:</span>
+                  <span className="font-medium">R$ {resumo.saidasSicoob.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-red-50/40 px-2 rounded mt-1">
+                  <span className="text-slate-600">Total Saídas Mercado Pago:</span>
+                  <span className="font-medium">R$ {resumo.saidasMercadoPago.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-red-50/40 px-2 rounded mt-1">
+                  <span className="text-slate-600">Total Saídas Caixa:</span>
+                  <span className="font-medium">R$ {resumo.saidasCaixa.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* TOTAL GERAL SAÍDAS */}
+              <div className="flex justify-between py-2 border-b-2 border-slate-300 pt-3">
+                <span className="font-bold text-red-700 uppercase">Total Geral de Saídas:</span>
+                <span className="font-bold text-red-700 text-base">R$ {resumo.totalGeralSaidas.toFixed(2)}</span>
+              </div>
+
+              {/* SALDO MÊS */}
+              <div className="flex justify-between py-3 bg-slate-800 text-white px-4 rounded-lg text-lg font-bold mt-4 shadow-sm">
+                <span>Saldo Mês:</span>
+                <span className={resumo.saldoMes >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  R$ {resumo.saldoMes.toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -211,12 +314,12 @@ export default function FechamentoPage() {
               <button
                 onClick={fecharMesETransportarSaldo}
                 disabled={carregando}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium p-3 rounded-lg transition"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium p-3 rounded-lg transition mt-4"
               >
                 {carregando ? 'Processando...' : 'Aprovar Fechamento e Transportar Saldo'}
               </button>
             ) : (
-              <p className="text-sm text-slate-500 text-center italic">
+              <p className="text-sm text-slate-500 text-center italic mt-4">
                 Este período já foi finalizado. O saldo final foi automaticamente aplicado como saldo inicial do mês subsequente.
               </p>
             )}
