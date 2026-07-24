@@ -43,65 +43,76 @@ export default function LancamentosPage() {
     setCarregando(true);
     setMensagem({ tipo: '', texto: '' });
 
-    const user = (await supabase.auth.getUser()).data.user;
-    if (!user) return;
+    try {
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data?.user?.id || null;
 
-    const categoriaSel = categorias.find((c) => c.id === categoriaId);
-    if (!categoriaSel) return;
-
-    // Buscar ou criar o período aberto correspondente à data
-    const [ano, mes] = data.split('-').map(Number);
-    let { data: periodo } = await supabase
-      .from('periodos')
-      .select('*')
-      .eq('mes', mes)
-      .eq('ano', ano)
-      .single();
-
-    if (!periodo) {
-      const { data: novoPeriodo, error: errP } = await supabase
-        .from('periodos')
-        .insert({ mes, ano, status: 'aberto' })
-        .select()
-        .single();
-      if (errP) {
-        setMensagem({ tipo: 'erro', texto: 'Erro ao abrir novo período financeiro.' });
-        setCarregando(false);
+      const categoriaSel = categorias.find((c) => c.id === categoriaId);
+      if (!categoriaSel) {
+        setMensagem({ tipo: 'erro', texto: 'Selecione uma categoria válida.' });
         return;
       }
-      periodo = novoPeriodo;
-    }
 
-    if (periodo.status === 'fechado') {
-      setMensagem({ tipo: 'erro', texto: 'Este mês já foi FECHADO. Não é possível realizar novos lançamentos.' });
+      // Buscar ou criar o período aberto correspondente à data
+      const [ano, mes] = data.split('-').map(Number);
+      let { data: periodo } = await supabase
+        .from('periodos')
+        .select('*')
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .maybeSingle();
+
+      if (!periodo) {
+        const { data: novoPeriodo, error: errP } = await supabase
+          .from('periodos')
+          .insert({ mes, ano, status: 'aberto' })
+          .select()
+          .single();
+          
+        if (errP) {
+          setMensagem({ tipo: 'erro', texto: 'Erro ao abrir novo período financeiro: ' + errP.message });
+          return;
+        }
+        periodo = novoPeriodo;
+      }
+
+      if (periodo && periodo.status === 'fechado') {
+        setMensagem({ tipo: 'erro', texto: 'Este mês já foi FECHADO. Não é possível realizar novos lançamentos.' });
+        return;
+      }
+
+      const valorNum = parseFloat(valor.toString().replace(',', '.'));
+      if (isNaN(valorNum) || valorNum <= 0) {
+        setMensagem({ tipo: 'erro', texto: 'Informe um valor numérico válido maior que zero.' });
+        return;
+      }
+
+      const { error } = await supabase.from('lancamentos').insert({
+        data,
+        historico,
+        conta_id: contaId,
+        categoria_id: categoriaId,
+        tipo: categoriaSel.tipo,
+        valor: valorNum,
+        nome_dizimista: nomeDizimista || null,
+        usuario_id: userId,
+        periodo_id: periodo?.id || null,
+      });
+
+      if (error) {
+        setMensagem({ tipo: 'erro', texto: 'Erro ao salvar o lançamento: ' + error.message });
+      } else {
+        setMensagem({ tipo: 'sucesso', texto: 'Lançamento registrado com sucesso!' });
+        setHistorico('');
+        setValor('');
+        setNomeDizimista('');
+        carregarDados();
+      }
+    } catch (err: any) {
+      setMensagem({ tipo: 'erro', texto: 'Ocorreu um erro inesperado: ' + (err.message || err) });
+    } finally {
       setCarregando(false);
-      return;
     }
-
-    const valorNum = parseFloat(valor.replace(',', '.'));
-
-    const { error } = await supabase.from('lancamentos').insert({
-      data,
-      historico,
-      conta_id: contaId,
-      categoria_id: categoriaId,
-      tipo: categoriaSel.tipo,
-      valor: valorNum,
-      nome_dizimista: nomeDizimista || null,
-      usuario_id: user.id,
-      periodo_id: periodo.id,
-    });
-
-    if (error) {
-      setMensagem({ tipo: 'erro', texto: 'Erro ao salvar o lançamento: ' + error.message });
-    } else {
-      setMensagem({ tipo: 'sucesso', texto: 'Lançamento registrado com sucesso!' });
-      setHistorico('');
-      setValor('');
-      setNomeDizimista('');
-      carregarDados();
-    }
-    setCarregando(false);
   };
 
   return (
