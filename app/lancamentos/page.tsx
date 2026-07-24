@@ -115,6 +115,22 @@ export default function LancamentosPage() {
     }
   };
 
+  // Função para excluir um lançamento
+  const handleExcluir = async (id: string) => {
+    if (!confirm('Tem certeza de que deseja excluir este lançamento?')) {
+      return;
+    }
+
+    const { error } = await supabase.from('lancamentos').delete().eq('id', id);
+
+    if (error) {
+      setMensagem({ tipo: 'erro', texto: 'Erro ao excluir o lançamento: ' + error.message });
+    } else {
+      setMensagem({ tipo: 'sucesso', texto: 'Lançamento excluído com sucesso!' });
+      carregarDados();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       <Navbar />
@@ -240,6 +256,7 @@ export default function LancamentosPage() {
                   <th className="p-3">Conta</th>
                   <th className="p-3">Categoria</th>
                   <th className="p-3 text-right">Valor</th>
+                  <th className="p-3 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -253,6 +270,15 @@ export default function LancamentosPage() {
                       l.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-600'
                     }`}>
                       {l.tipo === 'entrada' ? '+' : '-'} R$ {Number(l.valor).toFixed(2)}
+                    </td>
+                    <td className="p-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleExcluir(l.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition"
+                        title="Excluir lançamento"
+                      >
+                        🗑️
+                      </button>
                     </td>
                   </tr>
                 ))}
