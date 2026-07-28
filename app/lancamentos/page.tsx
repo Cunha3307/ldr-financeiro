@@ -180,22 +180,40 @@ export default function LancamentosPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Categoria</label>
-              <select
-                required
-                value={categoriaId}
-                onChange={(e) => setCategoriaId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
-              >
-                <option value="">Selecione uma categoria...</option>
-                {categorias.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nome} ({cat.tipo === 'entrada' ? 'Entrada' : cat.tipo === 'saida' ? 'Saída' : 'Transf.'})
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+    Categoria
+  </label>
+  <select
+    required
+    value={categoriaId}
+    onChange={(e) => setCategoriaId(e.target.value)}
+    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+  >
+    <option value="">Selecione uma categoria...</option>
 
+    {/* GRUPO DE ENTRADAS */}
+    <optgroup label="--- ENTRADAS ---">
+      {categorias
+        .filter((cat) => cat.tipo === 'entrada')
+        .map((cat) => (
+          <option key={cat.id} value={cat.id}>
+            {cat.nome}
+          </option>
+        ))}
+    </optgroup>
+
+    {/* GRUPO DE SAÍDAS */}
+    <optgroup label="--- SAÍDAS ---">
+      {categorias
+        .filter((cat) => cat.tipo === 'saida')
+        .map((cat) => (
+          <option key={cat.id} value={cat.id}>
+            {cat.nome}
+          </option>
+        ))}
+    </optgroup>
+  </select>
+</div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Valor (R$)</label>
               <input
