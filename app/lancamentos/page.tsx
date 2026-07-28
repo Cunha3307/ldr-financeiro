@@ -163,20 +163,23 @@ export default function LancamentosPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Conta (Destino/Origem)</label>
-              <select
-                required
-                value={contaId}
-                onChange={(e) => setContaId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
-              >
-                <option value="">Selecione uma conta...</option>
-                {contas.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+    Conta (Origem / Destino)
+  </label>
+  <select
+    required
+    value={contaId}
+    onChange={(e) => setContaId(e.target.value)}
+    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+  >
+    <option value="">Selecione uma conta...</option>
+    {Array.from(new Map(contas.map(c => [c.nome, c])).values()).map((conta) => (
+      <option key={conta.id} value={conta.id}>
+        {conta.nome}
+      </option>
+    ))}
+  </select>
+</div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
