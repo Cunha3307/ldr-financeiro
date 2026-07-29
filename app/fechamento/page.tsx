@@ -47,12 +47,14 @@ export default function FechamentoPage() {
         let entradasSicoob = 0;
         let entradasMercadoPago = 0;
         let entradasCaixa = 0;
+        let entradasCDB = 0;
 
         let totalGeralEntradas = 0;
 
         let saidasSicoob = 0;
         let saidasMercadoPago = 0;
         let saidasCaixa = 0;
+        let saidasCDB = 0;
 
         let totalGeralSaidas = 0;
 
@@ -77,8 +79,13 @@ export default function FechamentoPage() {
               ofertas += val;
             }
 
-            // Entradas por Conta
-            if (contaNome.includes('sicoob')) entradasSicoob += val;
+            // Entradas por Conta (Garante a separação de Sicoob e CDB Sicoob)
+            if (contaNome.includes('cdb')) {
+              entradasCDB += val;
+            } else if (contaNome.includes('sicoob')) {
+              entradasSicoob += val;
+            }
+
             if (contaNome.includes('mercado') || contaNome.includes('pago')) entradasMercadoPago += val;
             if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) entradasCaixa += val;
           }
@@ -87,7 +94,12 @@ export default function FechamentoPage() {
             totalGeralSaidas += val;
 
             // Saídas por Conta
-            if (contaNome.includes('sicoob')) saidasSicoob += val;
+            if (contaNome.includes('cdb')) {
+              saidasCDB += val;
+            } else if (contaNome.includes('sicoob')) {
+              saidasSicoob += val;
+            }
+
             if (contaNome.includes('mercado') || contaNome.includes('pago')) saidasMercadoPago += val;
             if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) saidasCaixa += val;
           }
@@ -102,10 +114,13 @@ export default function FechamentoPage() {
           entradasSicoob,
           entradasMercadoPago,
           entradasCaixa,
+          entradasCDB,
           totalGeralEntradas,
           saidasSicoob,
           saidasMercadoPago,
           saidasCaixa,
+          saidasCDB,
+          saldoCDB: entradasCDB - saidasCDB,
           totalGeralSaidas,
           saldoMes: totalGeralEntradas - totalGeralSaidas,
         });
@@ -260,6 +275,11 @@ export default function FechamentoPage() {
                   <span className="font-medium">R$ {resumo.entradasSicoob.toFixed(2)}</span>
                 </div>
 
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-blue-50 px-2 rounded mt-1">
+                  <span className="text-blue-900 font-medium">Total Entradas CDB Sicoob:</span>
+                  <span className="font-medium text-blue-900">R$ {resumo.entradasCDB.toFixed(2)}</span>
+                </div>
+
                 <div className="flex justify-between py-1.5 border-b border-slate-100 bg-slate-50 px-2 rounded mt-1">
                   <span className="text-slate-600">Total Entradas Mercado Pago:</span>
                   <span className="font-medium">R$ {resumo.entradasMercadoPago.toFixed(2)}</span>
@@ -284,6 +304,11 @@ export default function FechamentoPage() {
                   <span className="font-medium">R$ {resumo.saidasSicoob.toFixed(2)}</span>
                 </div>
 
+                <div className="flex justify-between py-1.5 border-b border-slate-100 bg-blue-50/60 px-2 rounded mt-1">
+                  <span className="text-blue-900 font-medium">Total Saídas CDB Sicoob:</span>
+                  <span className="font-medium text-blue-900">R$ {resumo.saidasCDB.toFixed(2)}</span>
+                </div>
+
                 <div className="flex justify-between py-1.5 border-b border-slate-100 bg-red-50/40 px-2 rounded mt-1">
                   <span className="text-slate-600">Total Saídas Mercado Pago:</span>
                   <span className="font-medium">R$ {resumo.saidasMercadoPago.toFixed(2)}</span>
@@ -301,12 +326,19 @@ export default function FechamentoPage() {
                 <span className="font-bold text-red-700 text-base">R$ {resumo.totalGeralSaidas.toFixed(2)}</span>
               </div>
 
-              {/* SALDO MÊS */}
-              <div className="flex justify-between py-3 bg-slate-800 text-white px-4 rounded-lg text-lg font-bold mt-4 shadow-sm">
-                <span>Saldo Mês:</span>
-                <span className={resumo.saldoMes >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                  R$ {resumo.saldoMes.toFixed(2)}
-                </span>
+              {/* SALDO CDB E SALDO MÊS */}
+              <div className="pt-2 space-y-2">
+                <div className="flex justify-between py-2 bg-blue-50 border border-blue-200 text-blue-900 px-4 rounded-lg text-sm font-semibold">
+                  <span>Movimentação/Saldo CDB Sicoob:</span>
+                  <span>R$ {resumo.saldoCDB.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between py-3 bg-slate-800 text-white px-4 rounded-lg text-lg font-bold shadow-sm">
+                  <span>Saldo Mês:</span>
+                  <span className={resumo.saldoMes >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    R$ {resumo.saldoMes.toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
 
