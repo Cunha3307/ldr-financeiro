@@ -168,7 +168,7 @@ export default function RelatorioPage() {
     XLSX.writeFile(workbook, `Relatorio_Contabilidade_${mes}_${ano}.xlsx`);
   };
 
-  // 3. Exportar em PDF (Adequado para Contabilidade)
+  // 3. Exportar em PDF (Adequado para Contabilidade com Assinaturas)
   const handleExportarPDF = () => {
     if (!lancamentos.length) return;
 
@@ -196,6 +196,22 @@ export default function RelatorioPage() {
       headStyles: { fillColor: [30, 41, 59] },
       styles: { fontSize: 8 },
     });
+
+    // Posição vertical logo após a tabela para as assinaturas
+    const finalY = (doc as any).lastAutoTable.finalY + 25;
+
+    // Assinatura Presidente
+    doc.line(20, finalY, 90, finalY);
+    doc.setFontSize(9);
+    doc.text('Gislane Medeiros da Cunha', 55, finalY + 5, { align: 'center' });
+    doc.text('CPF: 908.881.039-72', 55, finalY + 10, { align: 'center' });
+    doc.text('Presidente Dir. Executiva', 55, finalY + 15, { align: 'center' });
+
+    // Assinatura Tesoureiro
+    doc.line(120, finalY, 190, finalY);
+    doc.text('Jhonatan Dessoy', 155, finalY + 5, { align: 'center' });
+    doc.text('CPF: 087.511.829-12', 155, finalY + 10, { align: 'center' });
+    doc.text('Tesoureiro Geral', 155, finalY + 15, { align: 'center' });
 
     doc.save(`Relatorio_Contabilidade_${mes}_${ano}.pdf`);
   };
@@ -396,7 +412,7 @@ export default function RelatorioPage() {
               </div>
             </div>
 
-            {/* SEÇÃO 2: RELATÓRIO DETALHADO ITEM POR ITEM (PARA CONTABILIDADE) */}
+            {/* SEÇÃO 2: RELATÓRIO DETALHADO ITEM POR ITEM */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 print:shadow-none print:border-none print:p-0">
               <h2 className="text-lg font-bold text-slate-800 border-b pb-3 mb-4">
                 2. Lançamentos Detalhados (Entradas e Saídas)
@@ -454,6 +470,25 @@ export default function RelatorioPage() {
                   </table>
                 </div>
               )}
+            </div>
+
+            {/* SEÇÃO DE ASSINATURAS (NO FINAL DO RELATÓRIO) */}
+            <div className="pt-12 pb-6 grid grid-cols-1 md:grid-cols-2 gap-12 text-center text-slate-800 print:pt-16">
+              {/* Presidente */}
+              <div className="flex flex-col items-center">
+                <div className="w-64 border-t border-slate-400 mb-2 print:border-black"></div>
+                <p className="font-bold text-sm">Gislane Medeiros da Cunha</p>
+                <p className="text-xs text-slate-600 print:text-slate-800">CPF: 908.881.039-72</p>
+                <p className="text-xs font-medium text-slate-700 print:text-black">Presidente Dir. Executiva</p>
+              </div>
+
+              {/* Tesoureiro */}
+              <div className="flex flex-col items-center">
+                <div className="w-64 border-t border-slate-400 mb-2 print:border-black"></div>
+                <p className="font-bold text-sm">Jhonatan Dessoy</p>
+                <p className="text-xs text-slate-600 print:text-slate-800">CPF: 087.511.829-12</p>
+                <p className="text-xs font-medium text-slate-700 print:text-black">Tesoureiro Geral</p>
+              </div>
             </div>
 
           </div>
