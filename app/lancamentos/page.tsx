@@ -5,13 +5,14 @@ import Navbar from '@/components/Navbar';
 import { supabase } from '@/lib/supabase';
 
 export default function LancamentosPage() {
-  const [data, setData] = useState(new Date().toISOString().split('T')[0]);
   const [tipo, setTipo] = useState<'entrada' | 'saida'>('entrada');
+  const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
-  const [historico, setHistorico] = useState('');
-  const [fornecedor, setFornecedor] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [contaId, setContaId] = useState('');
+  const [dataLancamento, setDataLancamento] = useState(
+    new Date().toISOString().split('T')[0]
+  );
 
   const [categorias, setCategorias] = useState<any[]>([]);
   const [contas, setContas] = useState<any[]>([]);
@@ -19,26 +20,25 @@ export default function LancamentosPage() {
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
   useEffect(() => {
-    carregarDados();
-  }, []);
+    carregarOpcoes();
+  }, [tipo]);
 
-  const carregarDados = async () => {
-    // Carregar Categorias ordenadas por tipo e nome
-    const { data: catData } = await supabase
+  const carregarOpcoes = async () => {
+    // 1. Carregar Categorias filtradas pelo Tipo (Entrada ou Saída)
+    const { data: cats } = await supabase
       .from('categorias')
       .select('*')
-      .order('tipo', { ascending: true })
-      .order('nome', { ascending: true });
+      .eq('tipo', tipo)
+      .order('nome');
 
-    if (catData) setCategorias(catData);
-
-    // Carregar Contas
-    const { data: contaData } = await supabase
+    // 2. Carregar Contas (Inclui Sicoob, MP, Caixa, CDB, Missões e Rede Bomber)
+    const { data: cnts } = await supabase
       .from('contas')
       .select('*')
-      .order('nome', { ascending: true });
+      .order('nome');
 
-    if (contaData) setContas(contaData);
+    if (cats) setCategorias(cats);
+    if (cnts) setContas(cnts);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,204 +46,203 @@ export default function LancamentosPage() {
     setCarregando(true);
     setMensagem({ tipo: '', texto: '' });
 
-    try {
-      const dataObj = new Date(data);
-      const mes = dataObj.getUTCMonth() + 1;
-      const ano = dataObj.getUTCFullYear();
+    const dataObj = new Date(dataLancamento);
+    const mes = dataObj.getMonth() + 1;
+    const ano = dataObj.getFullYear();
 
-      // Buscar o período referente à data informada
-      const { data: periodoData, error: errPeriodo } = await supabase
+    // Buscar Período correspondente
+    let { data: periodo } = await supabase
+      .from('periodos')
+      .select('id, status')
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .single();
+
+    if (!periodo) {
+      const { data: novoPeriodo, error: errP } = await supabase
         .from('periodos')
-        .select('id, status')
-        .eq('mes', mes)
-        .eq('ano', ano)
+        .insert([{ mes, ano, status: 'aberto' }])
+        .select()
         .single();
 
-      if (errPeriodo || !periodoData) {
-        setMensagem({
-          tipo: 'erro',
-          texto: `Não existe um período cadastrado para ${mes}/${ano}.`,
-        });
+      if (errP) {
+        setMensagem({ tipo: 'erro', texto: 'Erro ao criar período: ' + errP.message });
         setCarregando(false);
         return;
       }
+      periodo = novoPeriodo;
+    }
 
-      if (periodoData.status === 'fechado') {
-        setMensagem({
-          tipo: 'erro',
-          texto: `O período ${mes}/${ano} já está FECHADO. Não é possível fazer lançamentos.`,
-        });
-        setCarregando(false);
-        return;
-      }
+    if (periodo.status === 'fechado') {
+      setMensagem({
+        tipo: 'erro',
+        texto: `Não é possível lançar em ${mes}/${ano} pois o período está FECHADO.`,
+      });
+      setCarregando(false);
+      return;
+    }
 
-      // Inserir Lançamento
-      const { error: errInsert } = await supabase.from('lancamentos').insert({
-        periodo_id: periodoData.id,
-        data,
+    const { error } = await supabase.from('lancamentos').insert([
+      {
         tipo,
-        valor: parseFloat(valor.replace(',', '.')),
-        historico,
-        fornecedor,
+        descricao,
+        valor: parseFloat(valor),
         categoria_id: categoriaId,
         conta_id: contaId,
-      });
+        data: dataLancamento,
+        periodo_id: periodo.id,
+      },
+    ]);
 
-      if (errInsert) {
-        setMensagem({ tipo: 'erro', texto: 'Erro ao salvar: ' + errInsert.message });
-      } else {
-        setMensagem({ tipo: 'sucesso', texto: 'Lançamento cadastrado com sucesso!' });
-        setHistorico('');
-        setFornecedor('');
-        setValor('');
-      }
-    } catch (err: any) {
-      setMensagem({ tipo: 'erro', texto: 'Erro inesperado ao processar lançamento.' });
-    } finally {
-      setCarregando(false);
+    if (error) {
+      setMensagem({ tipo: 'erro', texto: 'Erro ao salvar lançamento: ' + error.message });
+    } else {
+      setMensagem({ tipo: 'sucesso', texto: 'Lançamento realizado com sucesso!' });
+      setDescricao('');
+      setValor('');
     }
+    setCarregando(false);
   };
-
-  // Filtragem única de categorias e contas para evitar redundância visual
-  const entradas = Array.from(new Map(categorias.filter((c) => c.tipo === 'entrada').map((c) => [c.nome, c])).values());
-  const saidas = Array.from(new Map(categorias.filter((c) => c.tipo === 'saida').map((c) => [c.nome, c])).values());
-  const listaContas = Array.from(new Map(contas.map((c) => [c.nome, c])).values());
 
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 pt-6">
-        <h1 className="text-2xl font-bold text-slate-800 mb-4">Novo Lançamento Financeiro</h1>
+      <div className="max-w-xl mx-auto px-4 pt-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h1 className="text-xl font-bold text-slate-800 mb-4">Novo Lançamento</h1>
 
-        {mensagem.texto && (
-          <div
-            className={`p-4 rounded-lg mb-6 text-sm font-medium ${
-              mensagem.tipo === 'sucesso'
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                : 'bg-red-100 text-red-800 border border-red-300'
-            }`}
-          >
-            {mensagem.texto}
-          </div>
-        )}
+          {mensagem.texto && (
+            <div
+              className={`p-3 rounded-lg mb-4 text-sm font-medium ${
+                mensagem.tipo === 'sucesso'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-red-100 text-red-800 border border-red-300'
+              }`}
+            >
+              {mensagem.texto}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* TIPO: ENTRADA OU SAÍDA */}
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setTipo('entrada')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-md transition ${
+                  tipo === 'entrada'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Entrada
+              </button>
+              <button
+                type="button"
+                onClick={() => setTipo('saida')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-md transition ${
+                  tipo === 'saida'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Saída
+              </button>
+            </div>
+
+            {/* DATA */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Data</label>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Data
+              </label>
               <input
                 type="date"
                 required
-                value={data}
-                onChange={(e) => setData(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                value={dataLancamento}
+                onChange={(e) => setDataLancamento(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 text-sm"
               />
             </div>
 
+            {/* VALOR */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Tipo</label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as 'entrada' | 'saida')}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 font-medium"
-              >
-                <option value="entrada">Entrada (+)</option>
-                <option value="saida">Saída (-)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Valor (R$)</label>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Valor (R$)
+              </label>
               <input
                 type="number"
                 step="0.01"
                 required
-                placeholder="0.00"
+                placeholder="0,00"
                 value={valor}
                 onChange={(e) => setValor(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 font-bold"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Histórico / Descrição</label>
-              <input
-                type="text"
-                required
-                placeholder="Ex: Oferta de Domingo ou Compra de Material"
-                value={historico}
-                onChange={(e) => setHistorico(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 text-sm"
               />
             </div>
 
+            {/* CATEGORIA */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Fornecedor / Favorecido</label>
-              <input
-                type="text"
-                placeholder="Ex: Razão Social / Nome do Membro / Empresa"
-                value={fornecedor}
-                onChange={(e) => setFornecedor(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Categoria</label>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Categoria
+              </label>
               <select
                 required
                 value={categoriaId}
                 onChange={(e) => setCategoriaId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 text-sm"
               >
                 <option value="">Selecione uma categoria...</option>
-                <optgroup label="ENTRADAS">
-                  {entradas.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.nome}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="SAÍDAS">
-                  {saidas.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.nome}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Conta (Origem / Destino)</label>
-              <select
-                required
-                value={contaId}
-                onChange={(e) => setContaId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
-              >
-                <option value="">Selecione uma conta...</option>
-                {listaContas.map((conta) => (
-                  <option key={conta.id} value={conta.id}>
-                    {conta.nome}
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
                   </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium p-3 rounded-lg transition mt-4"
-          >
-            {carregando ? 'Salvando...' : 'Salvar Lançamento'}
-          </button>
-        </form>
+            {/* CONTA (ORIGEM / DESTINO) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Conta (Origem / Destino)
+              </label>
+              <select
+                required
+                value={contaId}
+                onChange={(e) => setContaId(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 text-sm"
+              >
+                <option value="">Selecione a conta/destino...</option>
+                {contas.map((cnt) => (
+                  <option key={cnt.id} value={cnt.id}>
+                    {cnt.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* DESCRIÇÃO / OBSERVAÇÃO */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Descrição / Observação
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Oferta do Culto de Domingo, Pagamento Luz..."
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={carregando}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium p-3 rounded-lg transition text-sm mt-2"
+            >
+              {carregando ? 'Salvando...' : 'Registrar Lançamento'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
