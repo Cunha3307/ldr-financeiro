@@ -12,12 +12,16 @@ export default function FechamentoPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  // Estado para edição do Saldo de Abertura / Anterior
+  // Estado para edição dos Saldos de Abertura / Anteriores (Gerais + Fundos Específicos)
   const [saldoAbertura, setSaldoAbertura] = useState({
     sicoob: 0,
     mercadoPago: 0,
     caixa: 0,
     cdb: 0,
+    missoesCaixa: 0,
+    missoesBanco: 0,
+    redeBomberCaixa: 0,
+    redeBomberBanco: 0,
   });
 
   useEffect(() => {
@@ -45,9 +49,22 @@ export default function FechamentoPage() {
         mercadoPago: Number(p.saldo_abertura_json.mercadoPago || 0),
         caixa: Number(p.saldo_abertura_json.caixa || 0),
         cdb: Number(p.saldo_abertura_json.cdb || 0),
+        missoesCaixa: Number(p.saldo_abertura_json.missoesCaixa || 0),
+        missoesBanco: Number(p.saldo_abertura_json.missoesBanco || 0),
+        redeBomberCaixa: Number(p.saldo_abertura_json.redeBomberCaixa || 0),
+        redeBomberBanco: Number(p.saldo_abertura_json.redeBomberBanco || 0),
       });
     } else {
-      setSaldoAbertura({ sicoob: 0, mercadoPago: 0, caixa: 0, cdb: 0 });
+      setSaldoAbertura({
+        sicoob: 0,
+        mercadoPago: 0,
+        caixa: 0,
+        cdb: 0,
+        missoesCaixa: 0,
+        missoesBanco: 0,
+        redeBomberCaixa: 0,
+        redeBomberBanco: 0,
+      });
     }
 
     if (p) {
@@ -63,6 +80,18 @@ export default function FechamentoPage() {
         let ofertasMissoes = 0;
         let ofertasEspeciais = 0;
         let ofertasRedeBomber = 0;
+
+        // Entradas específicas por conta/fundo
+        let missoesCaixaEntrada = 0;
+        let missoesBancoEntrada = 0;
+        let redeBomberCaixaEntrada = 0;
+        let redeBomberBancoEntrada = 0;
+
+        // Saídas específicas por conta/fundo
+        let missoesCaixaSaida = 0;
+        let missoesBancoSaida = 0;
+        let redeBomberCaixaSaida = 0;
+        let redeBomberBancoSaida = 0;
 
         let entradasSicoob = 0;
         let entradasMercadoPago = 0;
@@ -83,30 +112,49 @@ export default function FechamentoPage() {
           const catNome = l.categorias?.nome ? l.categorias.nome.toLowerCase() : '';
           const contaNome = l.contas?.nome ? l.contas.nome.toLowerCase() : '';
 
+          const isCaixa = contaNome.includes('caixa') || contaNome.includes('dinheiro');
+
           if (l.tipo === 'entrada') {
             totalGeralEntradas += val;
 
             if (catNome.includes('dízimo') || catNome.includes('dizimo')) dizimos += val;
-            else if (catNome.includes('missões') || catNome.includes('missoes')) ofertasMissoes += val;
-            else if (catNome.includes('especial') || catNome.includes('especiais')) ofertasEspeciais += val;
-            else if (catNome.includes('bomber')) ofertasRedeBomber += val;
-            else if (catNome.includes('oferta')) ofertas += val;
+            else if (catNome.includes('missões') || catNome.includes('missoes')) {
+              ofertasMissoes += val;
+              if (isCaixa) missoesCaixaEntrada += val;
+              else missoesBancoEntrada += val;
+            } else if (catNome.includes('especial') || catNome.includes('especiais')) {
+              ofertasEspeciais += val;
+            } else if (catNome.includes('bomber')) {
+              ofertasRedeBomber += val;
+              if (isCaixa) redeBomberCaixaEntrada += val;
+              else redeBomberBancoEntrada += val;
+            } else if (catNome.includes('oferta')) {
+              ofertas += val;
+            }
 
             if (contaNome.includes('cdb')) entradasCDB += val;
             else if (contaNome.includes('sicoob')) entradasSicoob += val;
 
             if (contaNome.includes('mercado') || contaNome.includes('pago')) entradasMercadoPago += val;
-            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) entradasCaixa += val;
+            if (isCaixa) entradasCaixa += val;
           }
 
           if (l.tipo === 'saida') {
             totalGeralSaidas += val;
 
+            if (catNome.includes('missões') || catNome.includes('missoes')) {
+              if (isCaixa) missoesCaixaSaida += val;
+              else missoesBancoSaida += val;
+            } else if (catNome.includes('bomber')) {
+              if (isCaixa) redeBomberCaixaSaida += val;
+              else redeBomberBancoSaida += val;
+            }
+
             if (contaNome.includes('cdb')) saidasCDB += val;
             else if (contaNome.includes('sicoob')) saidasSicoob += val;
 
             if (contaNome.includes('mercado') || contaNome.includes('pago')) saidasMercadoPago += val;
-            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) saidasCaixa += val;
+            if (isCaixa) saidasCaixa += val;
           }
         });
 
@@ -126,6 +174,14 @@ export default function FechamentoPage() {
           saidasCaixa,
           saidasCDB,
           totalGeralSaidas,
+          missoesCaixaEntrada,
+          missoesBancoEntrada,
+          redeBomberCaixaEntrada,
+          redeBomberBancoEntrada,
+          missoesCaixaSaida,
+          missoesBancoSaida,
+          redeBomberCaixaSaida,
+          redeBomberBancoSaida,
           resultadoMes: totalGeralEntradas - totalGeralSaidas,
         });
       }
@@ -158,12 +214,16 @@ export default function FechamentoPage() {
 
     const user = (await supabase.auth.getUser()).data.user;
 
-    // Calcular saldos finais de cada conta para transportar
+    // Calcular saldos finais transportados
     const saldoFinalTransporte = {
       sicoob: saldoAbertura.sicoob + resumo.entradasSicoob - resumo.saidasSicoob,
       mercadoPago: saldoAbertura.mercadoPago + resumo.entradasMercadoPago - resumo.saidasMercadoPago,
       caixa: saldoAbertura.caixa + resumo.entradasCaixa - resumo.saidasCaixa,
       cdb: saldoAbertura.cdb + resumo.entradasCDB - resumo.saidasCDB,
+      missoesCaixa: saldoAbertura.missoesCaixa + resumo.missoesCaixaEntrada - resumo.missoesCaixaSaida,
+      missoesBanco: saldoAbertura.missoesBanco + resumo.missoesBancoEntrada - resumo.missoesBancoSaida,
+      redeBomberCaixa: saldoAbertura.redeBomberCaixa + resumo.redeBomberCaixaEntrada - resumo.redeBomberCaixaSaida,
+      redeBomberBanco: saldoAbertura.redeBomberBanco + resumo.redeBomberBancoEntrada - resumo.redeBomberBancoSaida,
     };
 
     // 1. Atualizar o Período Atual para FECHADO
@@ -202,14 +262,14 @@ export default function FechamentoPage() {
     } else {
       setMensagem({
         tipo: 'sucesso',
-        texto: `Mês ${mes}/${ano} FECHADO com sucesso! O saldo final foi levado como abertura para ${proximoMes}/${proximoAno}.`,
+        texto: `Mês ${mes}/${ano} FECHADO com sucesso! Todos os saldos (gerais e de fundos) foram levados para ${proximoMes}/${proximoAno}.`,
       });
       carregarFechamento();
     }
     setCarregando(false);
   };
 
-  // Cálculo dos Saldos Finais Consolidados
+  // Cálculos Consolidados Finais
   const totalAbertura =
     saldoAbertura.sicoob + saldoAbertura.mercadoPago + saldoAbertura.caixa + saldoAbertura.cdb;
 
@@ -218,12 +278,19 @@ export default function FechamentoPage() {
   const saldoFinalCaixa = saldoAbertura.caixa + (resumo?.entradasCaixa || 0) - (resumo?.saidasCaixa || 0);
   const saldoFinalCDB = saldoAbertura.cdb + (resumo?.entradasCDB || 0) - (resumo?.saidasCDB || 0);
 
+  // Fundos Específicos
+  const saldoFinalMissoesCaixa = saldoAbertura.missoesCaixa + (resumo?.missoesCaixaEntrada || 0) - (resumo?.missoesCaixaSaida || 0);
+  const saldoFinalMissoesBanco = saldoAbertura.missoesBanco + (resumo?.missoesBancoEntrada || 0) - (resumo?.missoesBancoSaida || 0);
+
+  const saldoFinalRedeBomberCaixa = saldoAbertura.redeBomberCaixa + (resumo?.redeBomberCaixaEntrada || 0) - (resumo?.redeBomberCaixaSaida || 0);
+  const saldoFinalRedeBomberBanco = saldoAbertura.redeBomberBanco + (resumo?.redeBomberBancoEntrada || 0) - (resumo?.redeBomberBancoSaida || 0);
+
   const saldoFinalTotal = totalAbertura + (resumo?.resultadoMes || 0);
 
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 pt-6">
+      <div className="max-w-4xl mx-auto px-4 pt-6">
         <h1 className="text-2xl font-bold text-slate-800 mb-4">Fechamento Mensal de Caixa</h1>
 
         {/* SELETOR DE MÊS/ANO */}
@@ -266,15 +333,17 @@ export default function FechamentoPage() {
           </div>
         )}
 
-        {/* 1. SEÇÃO DE SALDO INICIAL DO MÊS / SALDO ANTERIOR */}
+        {/* 1. SEÇÃO DE SALDOS DE ABERTURA */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 space-y-4">
           <div className="flex justify-between items-center border-b pb-2">
             <h2 className="text-base font-bold text-slate-800">
-              1. Saldo de Abertura (Mês Anterior)
+              1. Saldos de Abertura (Mês Anterior)
             </h2>
-            <span className="text-xs text-slate-500">Valores com que o mês iniciou</span>
+            <span className="text-xs text-slate-500">Saldos operacionais e fundos com destino certo</span>
           </div>
 
+          {/* Contas Operacionais */}
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contas Gerais / Operacionais</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-slate-600 mb-1 font-medium">Sicoob C/C</label>
@@ -322,17 +391,66 @@ export default function FechamentoPage() {
             </div>
           </div>
 
+          {/* Fundos de Destino Específico */}
+          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider pt-2">Fundos com Destinação Específica</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-amber-50/40 p-3 rounded-lg border border-amber-200/60">
+            <div>
+              <label className="block text-xs text-amber-900 mb-1 font-medium">Missões (Caixa)</label>
+              <input
+                type="number"
+                step="0.01"
+                disabled={periodo?.status === 'fechado'}
+                value={saldoAbertura.missoesCaixa}
+                onChange={(e) => setSaldoAbertura({ ...saldoAbertura, missoesCaixa: Number(e.target.value) })}
+                className="w-full border border-amber-300 rounded-lg p-2 text-sm text-slate-800 disabled:bg-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-amber-900 mb-1 font-medium">Missões (Banco)</label>
+              <input
+                type="number"
+                step="0.01"
+                disabled={periodo?.status === 'fechado'}
+                value={saldoAbertura.missoesBanco}
+                onChange={(e) => setSaldoAbertura({ ...saldoAbertura, missoesBanco: Number(e.target.value) })}
+                className="w-full border border-amber-300 rounded-lg p-2 text-sm text-slate-800 disabled:bg-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-amber-900 mb-1 font-medium">Rede Bomber (Caixa)</label>
+              <input
+                type="number"
+                step="0.01"
+                disabled={periodo?.status === 'fechado'}
+                value={saldoAbertura.redeBomberCaixa}
+                onChange={(e) => setSaldoAbertura({ ...saldoAbertura, redeBomberCaixa: Number(e.target.value) })}
+                className="w-full border border-amber-300 rounded-lg p-2 text-sm text-slate-800 disabled:bg-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-amber-900 mb-1 font-medium">Rede Bomber (Banco)</label>
+              <input
+                type="number"
+                step="0.01"
+                disabled={periodo?.status === 'fechado'}
+                value={saldoAbertura.redeBomberBanco}
+                onChange={(e) => setSaldoAbertura({ ...saldoAbertura, redeBomberBanco: Number(e.target.value) })}
+                className="w-full border border-amber-300 rounded-lg p-2 text-sm text-slate-800 disabled:bg-slate-100"
+              />
+            </div>
+          </div>
+
           {periodo?.status === 'aberto' && (
             <button
               onClick={salvarSaldoAbertura}
               className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-1.5 rounded transition"
             >
-              Salvar Saldo Inicial
+              Salvar Saldos Iniciais
             </button>
           )}
         </div>
 
-        {/* 2. DEMONSTRATIVO DO MÊS E SALDO FINAL */}
+        {/* 2. DEMONSTRATIVO DO MÊS E SALDOS FINAIS */}
         {resumo && (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
             <div className="flex justify-between items-center border-b pb-4">
@@ -356,11 +474,11 @@ export default function FechamentoPage() {
                 <span className="font-semibold text-slate-900">R$ {resumo.dizimos.toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span>Total de Ofertas:</span>
+                <span>Total de Ofertas Geral:</span>
                 <span className="font-semibold text-slate-900">R$ {resumo.ofertas.toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span>Oferta Missões:</span>
+                <span>Ofertas Missões (Mês):</span>
                 <span className="font-semibold text-slate-900">R$ {resumo.ofertasMissoes.toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
@@ -368,7 +486,7 @@ export default function FechamentoPage() {
                 <span className="font-semibold text-slate-900">R$ {resumo.ofertasEspeciais.toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span>Ofertas Rede Bomber:</span>
+                <span>Ofertas Rede Bomber (Mês):</span>
                 <span className="font-semibold text-slate-900">R$ {resumo.ofertasRedeBomber.toFixed(2)}</span>
               </div>
 
@@ -382,27 +500,55 @@ export default function FechamentoPage() {
                 <span className="font-bold text-red-700">R$ {resumo.totalGeralSaidas.toFixed(2)}</span>
               </div>
 
-              {/* SALDO EM CADA CONTA NO FIM DO MÊS */}
+              {/* DEMONSTRATIVO DE SALDOS ACUMULADOS POR CONTA */}
               <div className="pt-4 border-t space-y-2">
                 <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">
-                  Saldo Acumulado Final (Abertura + Entradas - Saídas)
+                  Saldo Final das Contas (Abertura + Movimentação)
                 </h3>
 
-                <div className="flex justify-between py-1 px-2 bg-slate-50 rounded">
-                  <span>Sicoob C/C:</span>
-                  <span className="font-semibold">R$ {saldoFinalSicoob.toFixed(2)}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between py-1.5 px-3 bg-slate-50 rounded">
+                    <span>Sicoob C/C:</span>
+                    <span className="font-semibold">R$ {saldoFinalSicoob.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-slate-50 rounded">
+                    <span>Mercado Pago:</span>
+                    <span className="font-semibold">R$ {saldoFinalMP.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-slate-50 rounded">
+                    <span>Caixa / Dinheiro:</span>
+                    <span className="font-semibold">R$ {saldoFinalCaixa.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-blue-50 text-blue-900 rounded font-semibold">
+                    <span>CDB Sicoob:</span>
+                    <span>R$ {saldoFinalCDB.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between py-1 px-2 bg-slate-50 rounded">
-                  <span>Mercado Pago:</span>
-                  <span className="font-semibold">R$ {saldoFinalMP.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 px-2 bg-slate-50 rounded">
-                  <span>Caixa / Dinheiro:</span>
-                  <span className="font-semibold">R$ {saldoFinalCaixa.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 px-2 bg-blue-50 text-blue-900 rounded font-semibold">
-                  <span>CDB Sicoob:</span>
-                  <span>R$ {saldoFinalCDB.toFixed(2)}</span>
+              </div>
+
+              {/* DEMONSTRATIVO DE FUNDOS COM DESTINAÇÃO ESPECÍFICA */}
+              <div className="pt-4 border-t space-y-2">
+                <h3 className="font-bold text-amber-800 text-xs uppercase tracking-wider mb-2">
+                  Saldos Finais de Fundos Destinados (Acumulado)
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="flex justify-between py-1.5 px-3 bg-amber-50 rounded border border-amber-200">
+                    <span>Missões (Caixa):</span>
+                    <span className="font-semibold text-amber-900">R$ {saldoFinalMissoesCaixa.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-amber-50 rounded border border-amber-200">
+                    <span>Missões (Banco):</span>
+                    <span className="font-semibold text-amber-900">R$ {saldoFinalMissoesBanco.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-amber-50 rounded border border-amber-200">
+                    <span>Rede Bomber (Caixa):</span>
+                    <span className="font-semibold text-amber-900">R$ {saldoFinalRedeBomberCaixa.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 px-3 bg-amber-50 rounded border border-amber-200">
+                    <span>Rede Bomber (Banco):</span>
+                    <span className="font-semibold text-amber-900">R$ {saldoFinalRedeBomberBanco.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
@@ -421,11 +567,11 @@ export default function FechamentoPage() {
                 disabled={carregando}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium p-3 rounded-lg transition mt-4"
               >
-                {carregando ? 'Processando...' : 'Aprovar Fechamento e Transportar Saldo'}
+                {carregando ? 'Processando...' : 'Aprovar Fechamento e Transportar Todos os Saldos'}
               </button>
             ) : (
               <p className="text-sm text-slate-500 text-center italic mt-4">
-                Este período já foi finalizado. O saldo final foi automaticamente aplicado como saldo inicial do mês subsequente.
+                Este período já foi finalizado. Os saldos de abertura e fundos foram levados ao mês subsequente.
               </p>
             )}
           </div>
