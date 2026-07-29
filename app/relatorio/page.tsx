@@ -227,33 +227,55 @@ export default function RelatorioPage() {
 
       <div className="max-w-5xl mx-auto px-4 pt-6 print:max-w-full print:px-0 print:pt-0">
         
-        {/* CABEÇALHO DA TELA & FILTRO DE DATA */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 print:hidden">
-          <div className="flex items-center gap-3">
-            <img src={LOGO_URL} alt="Logo" className="h-12 w-auto object-contain" />
-            <h1 className="text-2xl font-bold text-slate-800">Relatório Financeiro & Contábil</h1>
+        {/* CABEÇALHO OFICIAL DO RELATÓRIO */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 print:shadow-none print:border-none print:p-0 print:mb-6">
+          
+          {/* TOPO DO CABEÇALHO (LOGO + INFO DA COMUNIDADE + SELETOR DE DATA NA TELA) */}
+          <div className="flex flex-col md:flex-row items-center justify-between pb-4 border-b border-slate-200 gap-4">
+            
+            {/* Bloco da Esquerda: Logo + Textos Institucionais Centralizados */}
+            <div className="flex items-center gap-6 w-full md:w-auto justify-center md:justify-start">
+              <img 
+                src={LOGO_URL} 
+                alt="Logo Lugar de Refúgio" 
+                className="h-20 w-auto object-contain flex-shrink-0" 
+              />
+              <div className="text-center md:text-left text-slate-800 space-y-0.5">
+                <p className="font-bold text-lg leading-tight">Comunidade Lugar de Refúgio</p>
+                <p className="text-xs text-slate-600">Rua Otto Júlio Malina, nº 279 - Ipiranga - São José - SC - CEP 88.111-500</p>
+                <p className="text-xs text-slate-600">CNPJ: 47.332.459/0001-56</p>
+              </div>
+            </div>
+
+            {/* Filtro de Data (Visível apenas na tela) */}
+            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 print:hidden self-center md:self-auto">
+              <select
+                value={mes}
+                onChange={(e) => setMes(Number(e.target.value))}
+                className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm bg-white"
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                value={ano}
+                onChange={(e) => setAno(Number(e.target.value))}
+                className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm w-24 bg-white"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-            <select
-              value={mes}
-              onChange={(e) => setMes(Number(e.target.value))}
-              className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm"
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="number"
-              value={ano}
-              onChange={(e) => setAno(Number(e.target.value))}
-              className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm w-24"
-            />
+          {/* TÍTULO E PERÍODO CENTRALIZADOS ABAIXO */}
+          <div className="text-center pt-4">
+            <h1 className="text-2xl font-bold text-slate-900">Relatório Contábil e Financeiro</h1>
+            <p className="text-sm font-medium text-slate-600 mt-1">Período: {mes}/{ano}</p>
           </div>
+
         </div>
 
         {/* BARRA DE BOTÕES DE AÇÃO (IMPRESSÃO / EXPORTAÇÃO) */}
@@ -279,15 +301,6 @@ export default function RelatorioPage() {
             </button>
           </div>
         )}
-
-        {/* TÍTULO EXCLUSIVO PARA IMPRESSÃO (COM LOGO) */}
-        <div className="hidden print:flex items-center justify-between mb-6 border-b pb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Relatório Contábil e Financeiro</h1>
-            <p className="text-sm text-slate-600">Período: {mes}/{ano}</p>
-          </div>
-          <img src={LOGO_URL} alt="Logo" className="h-16 w-auto object-contain" />
-        </div>
 
         {carregando ? (
           <p className="text-center text-slate-500 py-12">Carregando relatório...</p>
