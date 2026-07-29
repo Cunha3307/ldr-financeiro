@@ -46,12 +46,14 @@ export default function RelatorioPage() {
         let entradasSicoob = 0;
         let entradasMercadoPago = 0;
         let entradasCaixa = 0;
+        let entradasCDB = 0;
 
         let totalGeralEntradas = 0;
 
         let saidasSicoob = 0;
         let saidasMercadoPago = 0;
         let saidasCaixa = 0;
+        let saidasCDB = 0;
 
         let totalGeralSaidas = 0;
 
@@ -69,7 +71,13 @@ export default function RelatorioPage() {
             else if (catNome.includes('bomber')) ofertasRedeBomber += val;
             else if (catNome.includes('oferta')) ofertas += val;
 
-            if (contaNome.includes('sicoob')) entradasSicoob += val;
+            // Filtro de Contas (Garante que Sicoob normal não pegue o CDB)
+            if (contaNome.includes('cdb')) {
+              entradasCDB += val;
+            } else if (contaNome.includes('sicoob')) {
+              entradasSicoob += val;
+            }
+
             if (contaNome.includes('mercado') || contaNome.includes('pago')) entradasMercadoPago += val;
             if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) entradasCaixa += val;
           }
@@ -77,7 +85,12 @@ export default function RelatorioPage() {
           if (l.tipo === 'saida') {
             totalGeralSaidas += val;
 
-            if (contaNome.includes('sicoob')) saidasSicoob += val;
+            if (contaNome.includes('cdb')) {
+              saidasCDB += val;
+            } else if (contaNome.includes('sicoob')) {
+              saidasSicoob += val;
+            }
+
             if (contaNome.includes('mercado') || contaNome.includes('pago')) saidasMercadoPago += val;
             if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) saidasCaixa += val;
           }
@@ -92,10 +105,13 @@ export default function RelatorioPage() {
           entradasSicoob,
           entradasMercadoPago,
           entradasCaixa,
+          entradasCDB,
           totalGeralEntradas,
           saidasSicoob,
           saidasMercadoPago,
           saidasCaixa,
+          saidasCDB,
+          saldoCDB: entradasCDB - saidasCDB,
           totalGeralSaidas,
           saldoMes: totalGeralEntradas - totalGeralSaidas,
         });
@@ -241,6 +257,10 @@ export default function RelatorioPage() {
                 <div className="flex justify-between py-1 border-b border-slate-100 bg-slate-50 px-2 rounded">
                   <span>Total Entradas Caixa:</span>
                   <span className="font-medium">R$ {resumo.entradasCaixa.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 bg-blue-50 px-2 rounded font-medium text-blue-900">
+                  <span>Movimentação/Saldo CDB Sicoob:</span>
+                  <span>R$ {resumo.saldoCDB.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b-2 border-slate-300 font-bold text-emerald-700">
                   <span>TOTAL GERAL DE ENTRADAS:</span>
