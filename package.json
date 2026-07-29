@@ -1,6 +1,6 @@
 {
-  "name": "ldr-financeiro",
-  "version": "1.0.0",
+  "name": "sistema-financeiro-igreja",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,16 +10,18 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "lucide-react": "^0.344.0",
-    "next": "^14.1.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "next": "14.1.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "autoprefixer": "^10.4.18",
+    "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
