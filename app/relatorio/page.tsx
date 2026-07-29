@@ -7,6 +7,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
+// Constante apontando para a imagem dentro da pasta public
+const LOGO_URL = '/LDR sem fundo.png';
+
 export default function RelatorioPage() {
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -226,7 +229,10 @@ export default function RelatorioPage() {
         
         {/* CABEÇALHO DA TELA & FILTRO DE DATA */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 print:hidden">
-          <h1 className="text-2xl font-bold text-slate-800">Relatório Financeiro & Contábil</h1>
+          <div className="flex items-center gap-3">
+            <img src={LOGO_URL} alt="Logo" className="h-12 w-auto object-contain" />
+            <h1 className="text-2xl font-bold text-slate-800">Relatório Financeiro & Contábil</h1>
+          </div>
 
           <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
             <select
@@ -274,10 +280,13 @@ export default function RelatorioPage() {
           </div>
         )}
 
-        {/* TÍTULO EXCLUSIVO PARA IMPRESSÃO */}
-        <div className="hidden print:block mb-6 border-b pb-4">
-          <h1 className="text-2xl font-bold text-slate-900">Relatório Contábil e Financeiro</h1>
-          <p className="text-sm text-slate-600">Período: {mes}/{ano}</p>
+        {/* TÍTULO EXCLUSIVO PARA IMPRESSÃO (COM LOGO) */}
+        <div className="hidden print:flex items-center justify-between mb-6 border-b pb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Relatório Contábil e Financeiro</h1>
+            <p className="text-sm text-slate-600">Período: {mes}/{ano}</p>
+          </div>
+          <img src={LOGO_URL} alt="Logo" className="h-16 w-auto object-contain" />
         </div>
 
         {carregando ? (
