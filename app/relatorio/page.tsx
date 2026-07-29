@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 export default function RelatorioPage() {
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [ano, setAno] = useState(new Date().getFullYear());
-  const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [resumo, setResumo] = useState<any>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -17,44 +16,49 @@ export default function RelatorioPage() {
 
   const carregarRelatorio = async () => {
     setCarregando(true);
+    setResumo(null);
 
-    // Buscar Período
+    // 1. Buscar Período
     const { data: p } = await supabase
       .from('periodos')
-      .select('id')
+      .select('*')
       .eq('mes', mes)
       .eq('ano', ano)
       .single();
 
     if (p) {
-      // Buscar Lançamentos
+      // 2. Buscar Lançamentos do Período
       const { data: lancs } = await supabase
         .from('lancamentos')
-        .select('*, categorias(nome), contas(nome)')
-        .eq('periodo_id', p.id)
-        .order('data', { ascending: true });
+        .select('*, categorias(nome, tipo), contas(id, nome)')
+        .eq('periodo_id', p.id);
 
       if (lancs) {
-        setLancamentos(lancs);
+        // Dízimos por Conta
+        let dizimosSicoob = 0;
+        let dizimosMercadoPago = 0;
+        let dizimosCaixa = 0;
 
-        let dizimos = 0;
-        let ofertas = 0;
-        let ofertasMissoes = 0;
-        let ofertasEspeciais = 0;
-        let ofertasRedeBomber = 0;
+        // Ofertas Culto por Conta
+        let ofertasCultoSicoob = 0;
+        let ofertasCultoMercadoPago = 0;
+        let ofertasCultoCaixa = 0;
 
-        let entradasSicoob = 0;
-        let entradasMercadoPago = 0;
-        let entradasCaixa = 0;
-        let entradasCDB = 0;
+        // Ofertas Especiais por Conta
+        let ofertasEspeciaisSicoob = 0;
+        let ofertasEspeciaisMercadoPago = 0;
+        let ofertasEspeciaisCaixa = 0;
 
+        // Ofertas Missões por Conta
+        let ofertasMissoesBanco = 0;
+        let ofertasMissoesCaixa = 0;
+
+        // Ofertas Rede Bomber por Conta
+        let ofertasRedeBomberBanco = 0;
+        let ofertasRedeBomberCaixa = 0;
+
+        // Totais de Saídas e Entradas
         let totalGeralEntradas = 0;
-
-        let saidasSicoob = 0;
-        let saidasMercadoPago = 0;
-        let saidasCaixa = 0;
-        let saidasCDB = 0;
-
         let totalGeralSaidas = 0;
 
         lancs.forEach((l) => {
@@ -62,140 +66,101 @@ export default function RelatorioPage() {
           const catNome = l.categorias?.nome ? l.categorias.nome.toLowerCase() : '';
           const contaNome = l.contas?.nome ? l.contas.nome.toLowerCase() : '';
 
+          const isSicoob = contaNome.includes('sicoob');
+          const isMercadoPago = contaNome.includes('mercado') || contaNome.includes('pago');
+          const isCaixa = contaNome.includes('caixa') || contaNome.includes('dinheiro');
+
           if (l.tipo === 'entrada') {
             totalGeralEntradas += val;
 
-            if (catNome.includes('dízimo') || catNome.includes('dizimo')) dizimos += val;
-            else if (catNome.includes('missões') || catNome.includes('missoes')) ofertasMissoes += val;
-            else if (catNome.includes('especial') || catNome.includes('especiais')) ofertasEspeciais += val;
-            else if (catNome.includes('bomber')) ofertasRedeBomber += val;
-            else if (catNome.includes('oferta')) ofertas += val;
-
-            // Filtro de Contas (Garante que Sicoob normal não pegue o CDB)
-            if (contaNome.includes('cdb')) {
-              entradasCDB += val;
-            } else if (contaNome.includes('sicoob')) {
-              entradasSicoob += val;
+            // 1. DÍZIMOS
+            if (catNome.includes('dízimo') || catNome.includes('dizimo')) {
+              if (isSicoob) dizimosSicoob += val;
+              else if (isMercadoPago) dizimosMercadoPago += val;
+              else if (isCaixa) dizimosCaixa += val;
             }
-
-            if (contaNome.includes('mercado') || contaNome.includes('pago')) entradasMercadoPago += val;
-            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) entradasCaixa += val;
+            // 2. OFERTAS CULTO (Geral)
+            else if (catNome.includes('oferta') && !catNome.includes('miss') && !catNome.includes('especial') && !catNome.includes('bomber')) {
+              if (isSicoob) ofertasCultoSicoob += val;
+              else if (isMercadoPago) ofertasCultoMercadoPago += val;
+              else if (isCaixa) ofertasCultoCaixa += val;
+            }
+            // 3. OFERTAS ESPECIAIS
+            else if (catNome.includes('especial') || catNome.includes('especiais')) {
+              if (isSicoob) ofertasEspeciaisSicoob += val;
+              else if (isMercadoPago) ofertasEspeciaisMercadoPago += val;
+              else if (isCaixa) ofertasEspeciaisCaixa += val;
+            }
+            // 4. OFERTAS MISSÕES
+            else if (catNome.includes('missões') || catNome.includes('missoes')) {
+              if (isCaixa) ofertasMissoesCaixa += val;
+              else ofertasMissoesBanco += val; // Sicoob / MP / Banco
+            }
+            // 5. OFERTAS REDE BOMBER
+            else if (catNome.includes('bomber')) {
+              if (isCaixa) ofertasRedeBomberCaixa += val;
+              else ofertasRedeBomberBanco += val; // Sicoob / MP / Banco
+            }
           }
 
           if (l.tipo === 'saida') {
             totalGeralSaidas += val;
-
-            if (contaNome.includes('cdb')) {
-              saidasCDB += val;
-            } else if (contaNome.includes('sicoob')) {
-              saidasSicoob += val;
-            }
-
-            if (contaNome.includes('mercado') || contaNome.includes('pago')) saidasMercadoPago += val;
-            if (contaNome.includes('caixa') || contaNome.includes('dinheiro')) saidasCaixa += val;
           }
         });
 
+        // Totais Calculados
+        const totalDizimos = dizimosSicoob + dizimosMercadoPago + dizimosCaixa;
+        const totalOfertasCulto = ofertasCultoSicoob + ofertasCultoMercadoPago + ofertasCultoCaixa;
+        const totalOfertasEspeciais = ofertasEspeciaisSicoob + ofertasEspeciaisMercadoPago + ofertasEspeciaisCaixa;
+        const totalOfertasMissoes = ofertasMissoesBanco + ofertasMissoesCaixa;
+        const totalOfertasRedeBomber = ofertasRedeBomberBanco + ofertasRedeBomberCaixa;
+
         setResumo({
-          dizimos,
-          ofertas,
-          ofertasMissoes,
-          ofertasEspeciais,
-          ofertasRedeBomber,
-          entradasSicoob,
-          entradasMercadoPago,
-          entradasCaixa,
-          entradasCDB,
+          dizimosSicoob,
+          dizimosMercadoPago,
+          dizimosCaixa,
+          totalDizimos,
+
+          ofertasCultoSicoob,
+          ofertasCultoMercadoPago,
+          ofertasCultoCaixa,
+          totalOfertasCulto,
+
+          ofertasEspeciaisSicoob,
+          ofertasEspeciaisMercadoPago,
+          ofertasEspeciaisCaixa,
+          totalOfertasEspeciais,
+
+          ofertasMissoesBanco,
+          ofertasMissoesCaixa,
+          totalOfertasMissoes,
+
+          ofertasRedeBomberBanco,
+          ofertasRedeBomberCaixa,
+          totalOfertasRedeBomber,
+
           totalGeralEntradas,
-          saidasSicoob,
-          saidasMercadoPago,
-          saidasCaixa,
-          saidasCDB,
-          saldoCDB: entradasCDB - saidasCDB,
           totalGeralSaidas,
-          saldoMes: totalGeralEntradas - totalGeralSaidas,
         });
       }
-    } else {
-      setLancamentos([]);
-      setResumo(null);
     }
     setCarregando(false);
   };
 
-  // Função para Exportar para Excel / CSV
-  const exportarCSV = () => {
-    if (lancamentos.length === 0) return;
-
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "Data;Histórico;Fornecedor/Favorecido;Conta;Categoria;Tipo;Valor\n";
-
-    lancamentos.forEach((l) => {
-      const dataFmt = new Date(l.data).toLocaleDateString('pt-BR');
-      const hist = (l.historico || '').replace(/;/g, ' ');
-      const forn = (l.fornecedor || l.favorecido || '-').replace(/;/g, ' ');
-      const conta = (l.contas?.nome || '-').replace(/;/g, ' ');
-      const cat = (l.categorias?.nome || '-').replace(/;/g, ' ');
-      const valor = l.valor.toString().replace('.', ',');
-
-      csvContent += `${dataFmt};${hist};${forn};${conta};${cat};${l.tipo};${valor}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_financeiro_${mes}_${ano}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Função para Imprimir ou Salvar em PDF via Navegador
-  const imprimirRelatorio = () => {
-    window.print();
-  };
-
   return (
-    <div className="min-h-screen bg-slate-100 pb-12 print:bg-white print:pb-0">
-      <div className="print:hidden">
-        <Navbar />
-      </div>
+    <div className="min-h-screen bg-slate-100 pb-12">
+      <Navbar />
+      <div className="max-w-3xl mx-auto px-4 pt-6">
+        <h1 className="text-2xl font-bold text-slate-800 mb-4">Relatório Mensal de Entradas</h1>
 
-      <div className="max-w-5xl mx-auto px-4 pt-6">
-        {/* CABEÇALHO DA TELA & BOTÕES DE AÇÃO */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 print:hidden">
-          <h1 className="text-2xl font-bold text-slate-800">Relatório Financeiro Mensal</h1>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={exportarCSV}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition"
-            >
-              Exportar Excel / CSV
-            </button>
-            <button
-              onClick={imprimirRelatorio}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition"
-            >
-              Imprimir / PDF
-            </button>
-          </div>
-        </div>
-
-        {/* TÍTULO PARA IMPRESSÃO */}
-        <div className="hidden print:block text-center mb-6 border-b pb-4">
-          <h1 className="text-2xl font-bold text-slate-900">Relatório Financeiro Mensal</h1>
-          <p className="text-sm text-slate-600">Período: {mes}/{ano}</p>
-        </div>
-
-        {/* FILTROS DE MÊS E ANO */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4 print:hidden">
+        {/* SELETOR DE MÊS/ANO */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Mês</label>
             <select
               value={mes}
               onChange={(e) => setMes(Number(e.target.value))}
-              className="border border-slate-300 rounded-lg p-2 text-slate-800"
+              className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm"
             >
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -211,120 +176,132 @@ export default function RelatorioPage() {
               type="number"
               value={ano}
               onChange={(e) => setAno(Number(e.target.value))}
-              className="border border-slate-300 rounded-lg p-2 text-slate-800 w-28"
+              className="border border-slate-300 rounded-lg p-2 text-slate-800 text-sm w-28"
             />
           </div>
         </div>
 
-        {/* QUADRO DE RESUMO CONSOLIDADO */}
-        {resumo && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
-            <h2 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">Resumo do Mês ({mes}/{ano})</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm text-slate-700">
-              <div className="space-y-1">
-                <div className="flex justify-between py-1 border-b border-slate-100">
+        {/* DEMONSTRATIVO DETALHADO */}
+        {carregando ? (
+          <p className="text-center text-slate-500 py-8">Carregando relatório...</p>
+        ) : resumo ? (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+            <h2 className="text-lg font-bold text-slate-800 border-b pb-3">
+              Resumo Detalhado do Mês: {mes}/{ano}
+            </h2>
+
+            <div className="space-y-4 text-sm text-slate-700">
+              
+              {/* 1. DÍZIMOS */}
+              <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 space-y-1.5">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dízimos</p>
+                <div className="flex justify-between">
+                  <span>Dízimos Sicoob:</span>
+                  <span className="font-medium">R$ {resumo.dizimosSicoob.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dízimos Mercado Pago:</span>
+                  <span className="font-medium">R$ {resumo.dizimosMercadoPago.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dízimos Caixa:</span>
+                  <span className="font-medium">R$ {resumo.dizimosCaixa.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t font-bold text-slate-900">
                   <span>Total de Dízimos:</span>
-                  <span className="font-semibold text-slate-900">R$ {resumo.dizimos.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span>Total de Ofertas:</span>
-                  <span className="font-semibold text-slate-900">R$ {resumo.ofertas.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span>Oferta Missões:</span>
-                  <span className="font-semibold text-slate-900">R$ {resumo.ofertasMissoes.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span>Ofertas Especiais:</span>
-                  <span className="font-semibold text-slate-900">R$ {resumo.ofertasEspeciais.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span>Ofertas Rede Bomber:</span>
-                  <span className="font-semibold text-slate-900">R$ {resumo.ofertasRedeBomber.toFixed(2)}</span>
+                  <span>R$ {resumo.totalDizimos.toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between py-1 border-b border-slate-100 bg-slate-50 px-2 rounded">
-                  <span>Total Entradas Sicoob:</span>
-                  <span className="font-medium">R$ {resumo.entradasSicoob.toFixed(2)}</span>
+              {/* 2. OFERTAS CULTO */}
+              <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 space-y-1.5">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ofertas de Culto</p>
+                <div className="flex justify-between">
+                  <span>Ofertas Culto Sicoob:</span>
+                  <span className="font-medium">R$ {resumo.ofertasCultoSicoob.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 bg-slate-50 px-2 rounded">
-                  <span>Total Entradas Mercado Pago:</span>
-                  <span className="font-medium">R$ {resumo.entradasMercadoPago.toFixed(2)}</span>
+                <div className="flex justify-between">
+                  <span>Ofertas Culto Mercado Pago:</span>
+                  <span className="font-medium">R$ {resumo.ofertasCultoMercadoPago.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 bg-slate-50 px-2 rounded">
-                  <span>Total Entradas Caixa:</span>
-                  <span className="font-medium">R$ {resumo.entradasCaixa.toFixed(2)}</span>
+                <div className="flex justify-between">
+                  <span>Ofertas Culto Caixa:</span>
+                  <span className="font-medium">R$ {resumo.ofertasCultoCaixa.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 bg-blue-50 px-2 rounded font-medium text-blue-900">
-                  <span>Movimentação/Saldo CDB Sicoob:</span>
-                  <span>R$ {resumo.saldoCDB.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b-2 border-slate-300 font-bold text-emerald-700">
-                  <span>TOTAL GERAL DE ENTRADAS:</span>
-                  <span>R$ {resumo.totalGeralEntradas.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b-2 border-slate-300 font-bold text-red-700">
-                  <span>TOTAL GERAL DE SAÍDAS:</span>
-                  <span>R$ {resumo.totalGeralSaidas.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between py-2 bg-slate-800 text-white px-3 rounded font-bold mt-2">
-                  <span>SALDO MÊS:</span>
-                  <span className={resumo.saldoMes >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    R$ {resumo.saldoMes.toFixed(2)}
-                  </span>
+                <div className="flex justify-between pt-2 border-t font-bold text-slate-900">
+                  <span>Total de Ofertas Culto:</span>
+                  <span>R$ {resumo.totalOfertasCulto.toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* 3. OFERTAS ESPECIAIS */}
+              <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 space-y-1.5">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ofertas Especiais</p>
+                <div className="flex justify-between">
+                  <span>Ofertas Especiais Sicoob:</span>
+                  <span className="font-medium">R$ {resumo.ofertasEspeciaisSicoob.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ofertas Especiais Mercado Pago:</span>
+                  <span className="font-medium">R$ {resumo.ofertasEspeciaisMercadoPago.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ofertas Especiais Caixa:</span>
+                  <span className="font-medium">R$ {resumo.ofertasEspeciaisCaixa.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t font-bold text-slate-900">
+                  <span>Total de Ofertas Especiais:</span>
+                  <span>R$ {resumo.totalOfertasEspeciais.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* 4. OFERTAS MISSÕES */}
+              <div className="bg-amber-50/50 p-3.5 rounded-lg border border-amber-200/70 space-y-1.5">
+                <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Ofertas Missões</p>
+                <div className="flex justify-between">
+                  <span>Ofertas Missões (Banco):</span>
+                  <span className="font-medium">R$ {resumo.ofertasMissoesBanco.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ofertas Missões (Caixa):</span>
+                  <span className="font-medium">R$ {resumo.ofertasMissoesCaixa.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-amber-200 font-bold text-amber-950">
+                  <span>Total de Ofertas Missões:</span>
+                  <span>R$ {resumo.totalOfertasMissoes.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* 5. OFERTAS REDE BOMBER */}
+              <div className="bg-amber-50/50 p-3.5 rounded-lg border border-amber-200/70 space-y-1.5">
+                <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Ofertas Rede Bomber</p>
+                <div className="flex justify-between">
+                  <span>Ofertas Rede Bomber (Banco):</span>
+                  <span className="font-medium">R$ {resumo.ofertasRedeBomberBanco.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ofertas Rede Bomber (Caixa):</span>
+                  <span className="font-medium">R$ {resumo.ofertasRedeBomberCaixa.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-amber-200 font-bold text-amber-950">
+                  <span>Total de Ofertas Rede Bomber:</span>
+                  <span>R$ {resumo.totalOfertasRedeBomber.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* RESUMO DE ENTRADAS GERAIS */}
+              <div className="flex justify-between py-3 px-4 bg-emerald-700 text-white rounded-lg text-base font-bold mt-6 shadow-sm">
+                <span>TOTAL GERAL DE ENTRADAS:</span>
+                <span>R$ {resumo.totalGeralEntradas.toFixed(2)}</span>
+              </div>
+
             </div>
           </div>
+        ) : (
+          <div className="bg-white p-6 rounded-xl text-center text-slate-500 border border-slate-200">
+            Nenhum lançamento ou período encontrado para esta data.
+          </div>
         )}
-
-        {/* TABELA DETALHADA DE LANÇAMENTOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs">
-                <th className="p-3">Data</th>
-                <th className="p-3">Histórico</th>
-                <th className="p-3">Fornecedor / Favorecido</th>
-                <th className="p-3">Conta</th>
-                <th className="p-3">Categoria</th>
-                <th className="p-3 text-right">Valor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {lancamentos.map((l) => (
-                <tr key={l.id} className="hover:bg-slate-50">
-                  <td className="p-3 whitespace-nowrap">
-                    {new Date(l.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                  </td>
-                  <td className="p-3">{l.historico || '-'}</td>
-                  <td className="p-3 font-medium text-slate-800">
-                    {l.fornecedor || l.favorecido || '-'}
-                  </td>
-                  <td className="p-3">{l.contas?.nome || '-'}</td>
-                  <td className="p-3">{l.categorias?.nome || '-'}</td>
-                  <td className={`p-3 text-right font-bold whitespace-nowrap ${
-                    l.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-600'
-                  }`}>
-                    {l.tipo === 'entrada' ? '+ ' : '- '}
-                    R$ {Number(l.valor).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-
-              {lancamentos.length === 0 && !carregando && (
-                <tr>
-                  <td colSpan={6} className="p-6 text-center text-slate-500 italic">
-                    Nenhum lançamento encontrado para este período.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
